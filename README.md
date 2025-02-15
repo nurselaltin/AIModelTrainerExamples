@@ -65,7 +65,7 @@ dotnet run
 ## 🤝 Katkıda Bulunun
 Bu projeye katkıda bulunmak isterseniz, **pull request gönderebilir veya önerilerinizi paylaşabilirsiniz**. 
 
-📧 **İletişim:** [GitHub Profiliniz veya E-mail Adresiniz]  
+📧 **İletişim:** [nurselaltin.na@gmail.com]  
 
 🚀 **İyi kodlamalar!**
 
