@@ -1,24 +1,11 @@
-﻿// See https://aka.ms/new-console-template for more information
-using FindSpamEmail.Entity;
+﻿using FindSpamEmail.Entity;
+using FindSpamEmail.Helpers;
 using Microsoft.ML;
 
 Console.WriteLine("Hello, World!");
 
 #region Eğitim verisini işle
-var datasetFilePath = Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory()).Parent.Parent.FullName, "Dataset");
-var trainData = Path.Combine(datasetFilePath, "spam.csv");
-
-var emails = File.ReadAllLines(trainData)
-                .Skip(1)
-                .Select(c => c.Split(',', 2))
-                .Where(c => c.Length == 2)
-                .Select(email => new Email()
-                {
-                     LabelRaw = email[0],
-                     Message = email[1],
-                })
-                ;
-
+var emails = Helper.GetEmails("training.csv");
 #endregion
 
 #region Pipeline Oluştur
@@ -30,7 +17,7 @@ var trainingData = context.Data.LoadFromEnumerable(emails);
 //Veri işleme pipeline oluştur
 var pipeline = context.Transforms.Text.FeaturizeText("Features", nameof(Email.Message))
     .Append(context.Transforms.NormalizeMinMax("Features")) // Özellikleri normalleştir
-    .Append(context.BinaryClassification.Trainers.LbfgsLogisticRegression(labelColumnName: "Label"));
+    .Append(context.BinaryClassification.Trainers.LbfgsLogisticRegression(labelColumnName: "Label", l2Regularization : 0.01f));
 
 #endregion
 
@@ -39,14 +26,33 @@ var model = pipeline.Fit(trainingData);
 
 #endregion
 
-var predictor = context.Model.CreatePredictionEngine<Email, EmailPrediction>(model);
+#region Modeli test et
+
+var testDataset = Helper.GetEmails("test.csv");
+var testData = context.Data.LoadFromEnumerable(testDataset);
 
 
-var testEmail = new Email { Message = "Merhaba" };
-var prediction = predictor.Predict(testEmail);
+var predictions = model.Transform(testData);
+var predictionResults = context.Data.CreateEnumerable<EmailPrediction>(predictions, reuseRowObject: false).ToList();
 
-Console.WriteLine($"Mesaj: {testEmail.Message}");
-Console.WriteLine($"Spam mı? {(prediction.PredictedLabel ? "Evet" : "Hayır")}");
+for (int i = 0; i < testDataset.Count(); i++)
+{
+    Console.WriteLine($"Mesaj: {testDataset[i].Message}");
+    Console.WriteLine($"Tahmin: {(predictionResults[i].PredictedLabel ? "Spam" : "Ham")}");
+    Console.WriteLine("-------------------------");
+    testDataset[i].LabelRaw = (predictionResults[i].PredictedLabel ? "Spam" : "Ham");
+}
+#endregion
 
+#region Modeli Ölç
+var testDataset2 = Helper.GetEmails("test.csv");
+
+testData = context.Data.LoadFromEnumerable(testDataset2);
+
+var metrics = context.BinaryClassification.Evaluate(model.Transform(testData), labelColumnName: "Label");
+Console.WriteLine($"Accuracy: {metrics.Accuracy}");
+Console.WriteLine($"Precision: {metrics.PositivePrecision}");
+Console.WriteLine($"Recall: {metrics.PositiveRecall}");
+#endregion
 
 Console.ReadLine();

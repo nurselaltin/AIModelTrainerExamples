@@ -6,22 +6,18 @@ namespace FindSpamEmail.Helpers
 {
     public static class Helper
     {
-        public static List<Email> CleanEmailData(string[] data)
+        public static List<Email> GetEmails(string fileName)
         {
             var emails = new List<Email>();
-            for (int i = 1; i < data.Length; i++)
-            {
-                var parts = data[i].Split(',', 2); // İlk virgülde ayır, mesajda virgüller olabilir. *** 2 değeri en fazla 2 parçaya bölebilirsin demek.
-                if (parts.Length < 2) continue; // Boş satırları veya hatalı satırları atla
+            var filePath = Path.Combine(Directory.GetParent(Directory.GetCurrentDirectory()).Parent.Parent.FullName, "Dataset");
+            var datasetPath = Path.Combine(filePath, fileName);
 
-                string label = parts[0].Trim().ToLower(); // "ham" veya "spam"
-                string message = parts[1].Trim(); // Mesaj içeriği
-
-                if (label == "ham" || label == "spam")
-                {
-                    emails.Add(new Email { LabelRaw = label, Message = message });
-                }
-            }
+            emails = File.ReadAllLines(datasetPath)
+                           .Skip(1)
+                           .Select(c => c.Split(',', 2))
+                           .Where(x => x.Length == 2)
+                           .Select(email => new Email() { LabelRaw = email[0], Message = email[1] }).ToList();
+            
             return emails;
         }
     }
